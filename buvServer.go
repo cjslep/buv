@@ -19,7 +19,7 @@ func TrackElapsed(start time.Time, name string) string {
 }
 
 type WebServer interface {
-	Start(domain string, templateFiles []string, address, assetFolder string, muxToHandler map[string]BevHandleFunc) error
+	Start(domain string, templateFiles []string, address, cssFolder, jsFolder string, muxToHandler map[string]BevHandleFunc) error
 	Shutdown()
 }
 
@@ -36,7 +36,7 @@ func NewBuvServer(fileLog, dirLog string, filePerms, dirPerms os.FileMode) (w We
 	return &server, nil
 }
 
-func (b *buvServer) Start(domain string, templateFiles []string, address, assetFolder string, muxToHandler map[string]BevHandleFunc) error {
+func (b *buvServer) Start(domain string, templateFiles []string, address, cssFolder, jsFolder string, muxToHandler map[string]BevHandleFunc) error {
 	defer b.logger.Println(TrackElapsed(time.Now(), "*Server Startup*"))
 	b.logger.Println("Begin *Server Startup*")
 	b.logger.Println("Parsing template files...")
@@ -57,9 +57,12 @@ func (b *buvServer) Start(domain string, templateFiles []string, address, assetF
 		b.handlers[key] = value
 		s.HandleFunc(key, b.renderer(value))
     }
-    b.logger.Println("Asset handler using folder: " + assetFolder)
-    b.logger.Println("Asset handler for: " + assetFolder + "{asset:[a-z]+(.css|.js)}")
-	s.HandleFunc(assetFolder + "{asset:[a-z]+(.css|.js)}", b.assetHandler(assetFolder))
+    b.logger.Println("CSS handler using folder: " + cssFolder)
+    b.logger.Println("CSS handler for: " + cssFolder + "{asset:[a-z]+(.css)}")
+	s.HandleFunc(cssFolder + "{asset:[a-z]+(.css)}", b.assetHandler(cssFolder))
+    b.logger.Println("JS handler using folder: " + jsFolder)
+    b.logger.Println("JS handler for: " + jsFolder + "{asset:[a-z]+(.js)}")
+	s.HandleFunc(jsFolder + "{asset:[a-z]+(.js)}", b.assetHandler(jsFolder))
     http.Handle("/", r)
     b.logger.Println("Finished building handlers.")
     

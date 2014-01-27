@@ -108,7 +108,7 @@ type buvServer struct {
 func (b *buvServer) renderTemplate(w http.ResponseWriter, tmpl string, p interface{}) {
 	err := b.myTemplates.ExecuteTemplate(w, tmpl, p)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		b.logger.Println("Error renderTemplate: " + err.Error())
 	}
 }
 
