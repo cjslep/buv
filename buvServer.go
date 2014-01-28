@@ -19,7 +19,7 @@ func TrackElapsed(start time.Time, name string) string {
 }
 
 type WebServer interface {
-	Start(domain string, templateFiles []string, address, cssFolder, jsFolder string, muxToHandler map[string]BevHandleFunc) error
+	Start(domain string, templateFiles []string, address, cssFolder, jsFolder string, muxToHandler map[string]BevHandleFunc, notFoundHandler BevHandleFunc) error
 	Shutdown()
 }
 
@@ -36,7 +36,7 @@ func NewBuvServer(fileLog, dirLog string, filePerms, dirPerms os.FileMode) (w We
 	return &server, nil
 }
 
-func (b *buvServer) Start(domain string, templateFiles []string, address, cssFolder, jsFolder string, muxToHandler map[string]BevHandleFunc) error {
+func (b *buvServer) Start(domain string, templateFiles []string, address, cssFolder, jsFolder string, muxToHandler map[string]BevHandleFunc, notFoundHandler BevHandleFunc) error {
 	defer b.logger.Println(TrackElapsed(time.Now(), "*Server Startup*"))
 	b.logger.Println("Begin *Server Startup*")
 	b.logger.Println("Parsing template files...")
@@ -44,6 +44,7 @@ func (b *buvServer) Start(domain string, templateFiles []string, address, cssFol
 	b.logger.Println("Done parsing template files!")
 	
 	r := mux.NewRouter()
+	r.NotFoundHandler = b.renderer(notFoundHandler)
 	var s *mux.Router
 	if len(domain) == 0 {
 		b.logger.Println("Using localhost as the host.")
