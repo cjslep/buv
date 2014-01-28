@@ -1,6 +1,7 @@
 package buv
 
 import (
+	"bitbucket.org/cjslep/dailyLogger"
 	"github.com/gorilla/mux"
 	"html/template"
 	"net/http"
@@ -11,7 +12,7 @@ import (
 )
 
 type TemplateRenderer func (w http.ResponseWriter, tmpl string, p interface{})
-type BevHandleFunc func (w http.ResponseWriter, r *http.Request, f TemplateRenderer, l TimeLogger)
+type BevHandleFunc func (w http.ResponseWriter, r *http.Request, f TemplateRenderer, l dailyLogger.TimeLogger)
 
 func TrackElapsed(start time.Time, name string) string {
     elapsed := time.Since(start)
@@ -23,13 +24,8 @@ type WebServer interface {
 	Shutdown()
 }
 
-type TimeLogger interface {
-	Println(output string)
-	Fatal(output string)
-}
-
 func NewBuvServer(fileLog, dirLog string, filePerms, dirPerms os.FileMode) (w WebServer, e error) {
-	logger, err := newBasicTimeLogger(fileLog, dirLog, filePerms, dirPerms)
+	logger, err := dailyLogger.NewBasicTimeLogger(fileLog, dirLog, filePerms, dirPerms)
 	if err != nil { return nil, err }
 	server := buvServer{nil, make(map[string]BevHandleFunc), logger, nil, nil}
 	logger.Println("Successfully made buvServer!")
