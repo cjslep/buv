@@ -36,7 +36,11 @@ func (b *buvServer) Start(domain string, templateFiles []string, address, cssFol
 	defer b.logger.Println(TrackElapsed(time.Now(), "*Server Startup*"))
 	b.logger.Println("Begin *Server Startup*")
 	b.logger.Println("Parsing template files...")
-	b.myTemplates = template.Must(template.ParseFiles(templateFiles...))
+	var err error
+	b.myTemplates, err = template.ParseFiles(templateFiles...)
+	if err != nil {
+		panic(err.Error())
+	}
 	b.logger.Println("Done parsing template files!")
 	
 	r := mux.NewRouter()
