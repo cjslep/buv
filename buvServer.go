@@ -39,6 +39,7 @@ func (b *buvServer) Start(domain string, templateFiles []string, address, cssFol
 	var err error
 	b.myTemplates, err = template.ParseFiles(templateFiles...)
 	if err != nil {
+		b.logger.Println(err.Error())
 		panic(err.Error())
 	}
 	b.logger.Println("Done parsing template files!")
