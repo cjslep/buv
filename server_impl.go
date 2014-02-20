@@ -2,6 +2,7 @@ package buv
 
 import (
 	"github.com/gorilla/mux"
+	"github.com/gorilla/sessions"
 	"net/http"
 	"os"
 )
@@ -11,20 +12,30 @@ const (
 	LOG_FATAL   = 1
 )
 
-func (b *BuvServer) renderTemplate(w http.ResponseWriter, tmpl string, p interface{}) {
-	err := b.myTemplates.ExecuteTemplate(w, tmpl, p)
+func (b *Server) getSession(request *http.Request, sessionName string) *sessions.Session {
+	sess, err := b.cookieStore.Get(request, sessionName)
 	if err != nil {
-		b.logger.Println("Error renderTemplate: " + err.Error())
+		b.logger.Println(err.Error())
+		return nil
+	}
+	return sess
+}
+
+func (b *Server) saveSession(r *http.Request, w http.ResponseWriter, session *sessions.Session) {
+	err := session.Save(r, w)
+	if err != nil {
+		b.logger.Println(err.Error())
 	}
 }
 
-func (b *BuvServer) renderer(fn BuvHandleFunc) http.HandlerFunc {
+func (b *Server) renderer(fn HandlerFunction) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		fn(w, r, b.renderTemplate, b.logger)
+		temp := HandlerData{w, r, b}
+		fn(&temp)
 	}
 }
 
-func (b *BuvServer) assetHandler(assetFolder string) http.HandlerFunc {
+func (b *Server) assetHandler(assetFolder string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		b.logger.Println("Handling asset: " + r.URL.Path)
 		vars := mux.Vars(r)
