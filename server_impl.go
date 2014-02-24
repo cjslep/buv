@@ -28,7 +28,7 @@ func (b *Server) saveSession(r *http.Request, w http.ResponseWriter, session *se
 	}
 }
 
-func (b *Server) renderer(fn HandlerFunction) http.HandlerFunc {
+func (b *Server) handler(fn HandlerFunction) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		temp := HandlerData{w, r, b}
 		fn(&temp)

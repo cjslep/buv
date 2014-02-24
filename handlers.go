@@ -2,6 +2,7 @@ package buv
 
 import (
 	"net/http"
+	"net/url"
 )
 
 type HandlerData struct {
@@ -10,12 +11,12 @@ type HandlerData struct {
 	server *Server
 }
 
-// BuvHandleFunc is the function clients must use when handling requests. It provides access to the web logger
-// in addition to a template renderer function that enables the handler to display a particular template if desired.
+// HandlerFunction is the function clients must use when handling requests. It provides access to the specific
+// request's HandlerData, through which handler functions can operate.
 type HandlerFunction func(data *HandlerData)
 
-func (h *HandlerData) SetStringSessionValue(sessionName, key, value string) {
-	h.server.SetStringSessionValue(h.w, h.r, sessionName, key, value)
+func (h *HandlerData) SetSessionValue(sessionName, key string, value interface{}) {
+	h.server.SetSessionValue(h.w, h.r, sessionName, key, value)
 }
 
 func (h *HandlerData) GetStringSessionValue(sessionName, key string) string {
@@ -88,4 +89,16 @@ func (h *HandlerData) RenderTemplate(templateName string, templateData interface
 
 func (h *HandlerData) Println(logString string) {
 	h.server.Println(logString)
+}
+
+func (h *HandlerData) Path() string {
+	return h.r.URL.Path
+}
+
+func (h *HandlerData) PostFormValue(key string) string {
+	return h.r.PostFormValue(key)
+}
+
+func (h *HandlerData) Query() url.Values {
+	return h.r.URL.Query()
 }

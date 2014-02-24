@@ -15,6 +15,8 @@ import (
 	"os"
 	"time"
 	"strconv"
+	"strings"
+	"net/url"
 )
 
 // A BuvServer is a http server that is able to gracefully start and terminate connections as it starts up
@@ -26,7 +28,8 @@ type Server struct {
 	logger       dailyLogger.TimeLogger
 	listener     net.Listener
 	servNotifier chan bool
-	cookieStore *sessions.CookieStore
+	cookieStore  *sessions.CookieStore
+	router       *mux.Router
 }
 
 // BuvServerOptions is a convenience structure for defining the parameters used when creating a new BuvServer
@@ -80,14 +83,105 @@ func NewServer(options *ServerOptions) (w *Server, e error) {
     	MaxAge: options.MaxAge,
     	HttpOnly: options.HttpOnly,
 	}
-	server := Server{nil, make(map[string]HandlerFunction), logger, nil, nil, tempStore}
+	server := Server{nil, make(map[string]HandlerFunction), logger, nil, nil, tempStore, mux.NewRouter()}
 	logger.Println("Successfully made buvServer!")
 	return &server, nil
 }
 
+func (b *Server) Localhost(URLName string) {
+	b.Domain("localhost", URLName)
+}
+
+func (b *Server) Domain(domain, URLName string) {
+	b.logger.Println("Using \"" + domain + "\" as the host.")
+	b.router.Host(domain).Name(URLName)
+}
+
+func (b *Server) NotFoundHandler(noHandler HandlerFunction) {
+	b.router.NotFoundHandler = b.handler(noHandler)
+}
+
+func (b *Server) AddHttpGetHandleFunc(path, URLName string, handleFunc HandlerFunction) {
+	b.AddHandleFunc([]string{"http"}, path, URLName, handleFunc, []string{"GET"}, nil, "")
+}
+
+func (b *Server) AddHttpGetHandleFuncQueries(path, URLName string, handleFunc HandlerFunction, queries map[string]string) {
+	b.AddHandleFunc([]string{"http"}, path, URLName, handleFunc, []string{"GET"}, queries, "")
+}
+
+func (b *Server) AddHttpPostHandleFunc(path, URLName string, handleFunc HandlerFunction) {
+	b.AddHandleFunc([]string{"http"}, path, URLName, handleFunc, []string{"POST"}, nil, "")
+}
+
+func (b *Server) AddHttpGetHandleFuncSubrouter(path, URLName string, handleFunc HandlerFunction, URLParentName string) {
+	b.AddHandleFunc([]string{"http"}, path, URLName, handleFunc, []string{"GET"}, nil, URLParentName)
+}
+
+func (b *Server) AddHttpGetHandleFuncQueriesSubrouter(path, URLName string, handleFunc HandlerFunction, queries map[string]string, URLParentName string) {
+	b.AddHandleFunc([]string{"http"}, path, URLName, handleFunc, []string{"GET"}, queries, URLParentName)
+}
+
+func (b *Server) AddHttpPostHandleFuncSubrouter(path, URLName string, handleFunc HandlerFunction, URLParentName string) {
+	b.AddHandleFunc([]string{"http"}, path, URLName, handleFunc, []string{"POST"}, nil, URLParentName)
+}
+
+func (b *Server) GetUrl(URLName string, pathVars map[string]string) *url.URL {
+	route := b.router.Get(URLName)
+	if route == nil {
+		b.logger.Println("GetUrl: No mux.Route with registered name: " + URLName)
+		return nil
+	}
+	pathVarSlice := make([]string, len(pathVars) * 2)
+	index := 0
+	for key, value := range pathVars {
+		pathVarSlice[index] = key
+		index++
+		pathVarSlice[index] = value
+		index++
+	}
+	url, err := route.URL(pathVarSlice...)
+	if err != nil {
+		b.logger.Println("GetUrl: " + err.Error())
+		return nil
+	} else {
+		return url
+	}
+}
+
+func (b *Server) AddHandleFunc(schemes []string, path, URLName string, handleFunc HandlerFunction, methods []string, queries map[string]string, URLParent string) {
+	querySlice := make([]string, len(queries) * 2)
+	index := 0
+	for key, value := range queries {
+		querySlice[index] = key
+		index++
+		querySlice[index] = value
+		index++
+	}
+	
+	r := b.router
+	if len(URLParent) > 0 {
+		temp := b.router.Get(URLParent)
+		if temp == nil {
+			b.logger.Println("AddHandleFuncSubrouter parent not found: " + URLParent)
+			return
+		} else {
+			b.logger.Println("AddHandleFunc parent found: " + URLParent)
+			r = temp.Subrouter()
+		}
+	}
+	
+	if len(querySlice) > 0 {
+		b.logger.Println("AddHandleFunc schemes=" + strings.Join(schemes, ":") + ", URLName=" + URLName + ", path=" + path + ", methods=" + strings.Join(methods, ":") + ", queries=" + strings.Join(querySlice, ":"))
+		r.HandleFunc(path, b.handler(handleFunc)).Schemes(schemes...).Methods(methods...).Name(URLName).Queries(querySlice...)
+	} else {
+		b.logger.Println("AddHandleFunc schemes=" + strings.Join(schemes, ":") + ", URLName=" + URLName + ", path=" + path + ", methods=" + strings.Join(methods, ":") + " (no queries)")
+		r.HandleFunc(path, b.handler(handleFunc)).Schemes(schemes...).Methods(methods...).Name(URLName)
+	}
+}
+
 // Starts up the web service, using the specified domain, template files, port address, css & javascript asset folders,
 // handler map, and default handler for invalid URIs.
-func (b *Server) Start(domain, address string, templateFiles []string, assetFolderToExtension map[string]string, muxToHandler map[string]HandlerFunction, notFoundHandler HandlerFunction) error {
+func (b *Server) Start(address string, templateFiles []string, assetFolderToExtension map[string]string) error {
 	defer b.logger.Println(trackElapsed(time.Now(), "*Server Startup*"))
 	b.logger.Println("Begin *Server Startup*")
 	b.logger.Println("Parsing template files...")
@@ -98,30 +192,13 @@ func (b *Server) Start(domain, address string, templateFiles []string, assetFold
 		panic(err.Error())
 	}
 	b.logger.Println("Done parsing template files!")
-
-	r := mux.NewRouter()
-	r.NotFoundHandler = b.renderer(notFoundHandler)
-	var s *mux.Router
-	if len(domain) == 0 {
-		b.logger.Println("Using localhost as the host.")
-		s = r.Host("localhost").Subrouter()
-	} else {
-		b.logger.Println("Using \"" + domain + "\" as the host.")
-		s = r.Host(domain).Subrouter()
-	}
-	
-	for key, value := range muxToHandler {
-		b.logger.Println("Adding HandleFunc for: " + key)
-		b.handlers[key] = value
-		s.HandleFunc(key, b.renderer(value))
-	}
 	
 	for assetFolder, assetExtension := range assetFolderToExtension {
 		b.logger.Println(assetExtension + " handler using folder: " + assetFolder)
-		s.HandleFunc(assetFolder + "{asset:[a-z]+(" + assetExtension + ")}", b.assetHandler(assetFolder))
+		b.router.HandleFunc(assetFolder + "{asset:[a-z]+(" + assetExtension + ")}", b.assetHandler(assetFolder))
 	}
 	
-	http.Handle("/", r)
+	http.Handle("/", b.router)
 	b.logger.Println("Finished building handlers.")
 
 	b.logger.Println("Creating listener on address " + address)
@@ -170,7 +247,7 @@ func (b *Server) GetStringSessionValue(request *http.Request, sessionName string
 	return strVal
 }
 
-func (b *Server) SetStringSessionValue(writer http.ResponseWriter, request *http.Request, sessionName, key, value string) {
+func (b *Server) SetSessionValue(writer http.ResponseWriter, request *http.Request, sessionName, key string, value interface{}) {
 	sess := b.getSession(request, sessionName)
 	if sess == nil {
 		return
