@@ -27,6 +27,14 @@ func (h *HandlerData) HasStringSessionValue(sessionName, key string) bool {
 	return h.server.HasStringSessionValue(h.r, sessionName, key)
 }
 
+func (h *HandlerData) GetBoolSessionValue(sessionName, key string) bool {
+	return h.server.GetBoolSessionValue(h.r, sessionName, key)
+}
+
+func (h *HandlerData) HasBoolSessionValue(sessionName, key string) bool {
+	return h.server.HasBoolSessionValue(h.r, sessionName, key)
+}
+
 func (h *HandlerData) RemoveSessionValue(sessionName, key string) {
 	h.server.RemoveSessionValue(h.w, h.r, sessionName, key)
 }
@@ -101,4 +109,8 @@ func (h *HandlerData) PostFormValue(key string) string {
 
 func (h *HandlerData) Query() url.Values {
 	return h.r.URL.Query()
+}
+
+func (h *HandlerData) String() string {
+	return "Method=" + h.r.Method + " URL=" + h.r.URL.String() + " Scheme=" + h.r.URL.Scheme + " Host=" + h.r.URL.Host
 }

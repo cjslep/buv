@@ -89,7 +89,7 @@ func NewServer(options *ServerOptions) (w *Server, e error) {
 }
 
 func (b *Server) Localhost(URLName string) {
-	b.Domain("localhost", URLName)
+	b.Domain("", URLName)
 }
 
 func (b *Server) Domain(domain, URLName string) {
@@ -102,27 +102,27 @@ func (b *Server) NotFoundHandler(noHandler HandlerFunction) {
 }
 
 func (b *Server) AddHttpGetHandleFunc(path, URLName string, handleFunc HandlerFunction) {
-	b.AddHandleFunc([]string{"http"}, path, URLName, handleFunc, []string{"GET"}, nil, "")
+	b.AddHandleFunc([]string{"http", ""}, path, URLName, handleFunc, []string{"GET"}, nil, "")
 }
 
 func (b *Server) AddHttpGetHandleFuncQueries(path, URLName string, handleFunc HandlerFunction, queries map[string]string) {
-	b.AddHandleFunc([]string{"http"}, path, URLName, handleFunc, []string{"GET"}, queries, "")
+	b.AddHandleFunc([]string{"http", ""}, path, URLName, handleFunc, []string{"GET"}, queries, "")
 }
 
 func (b *Server) AddHttpPostHandleFunc(path, URLName string, handleFunc HandlerFunction) {
-	b.AddHandleFunc([]string{"http"}, path, URLName, handleFunc, []string{"POST"}, nil, "")
+	b.AddHandleFunc([]string{"http", ""}, path, URLName, handleFunc, []string{"POST"}, nil, "")
 }
 
 func (b *Server) AddHttpGetHandleFuncSubrouter(path, URLName string, handleFunc HandlerFunction, URLParentName string) {
-	b.AddHandleFunc([]string{"http"}, path, URLName, handleFunc, []string{"GET"}, nil, URLParentName)
+	b.AddHandleFunc([]string{"http", ""}, path, URLName, handleFunc, []string{"GET"}, nil, URLParentName)
 }
 
 func (b *Server) AddHttpGetHandleFuncQueriesSubrouter(path, URLName string, handleFunc HandlerFunction, queries map[string]string, URLParentName string) {
-	b.AddHandleFunc([]string{"http"}, path, URLName, handleFunc, []string{"GET"}, queries, URLParentName)
+	b.AddHandleFunc([]string{"http", ""}, path, URLName, handleFunc, []string{"GET"}, queries, URLParentName)
 }
 
 func (b *Server) AddHttpPostHandleFuncSubrouter(path, URLName string, handleFunc HandlerFunction, URLParentName string) {
-	b.AddHandleFunc([]string{"http"}, path, URLName, handleFunc, []string{"POST"}, nil, URLParentName)
+	b.AddHandleFunc([]string{"http", ""}, path, URLName, handleFunc, []string{"POST"}, nil, URLParentName)
 }
 
 func (b *Server) GetUrl(URLName string, pathVars map[string]string) *url.URL {
@@ -168,6 +168,8 @@ func (b *Server) AddHandleFunc(schemes []string, path, URLName string, handleFun
 			b.logger.Println("AddHandleFunc parent found: " + URLParent)
 			r = temp.Subrouter()
 		}
+	} else {
+		b.logger.Println("AddHandleFunc no parent specified")
 	}
 	
 	if len(querySlice) > 0 {
@@ -247,6 +249,24 @@ func (b *Server) GetStringSessionValue(request *http.Request, sessionName string
 	return strVal
 }
 
+func (b *Server) GetBoolSessionValue(request *http.Request, sessionName string, key string) bool {
+	sess := b.getSession(request, sessionName)
+	if sess == nil {
+		return false
+	}
+	val, ok := sess.Values[key]
+	if !ok {
+		b.logger.Println("GetStringSessionValue: no value for key=" + key)
+		return false
+	}
+	boolVal, ok := val.(bool)
+	if !ok {
+		b.logger.Println("GetStringSessionValue: value not type bool for key=" + key)
+		return false
+	}
+	return boolVal
+}
+
 func (b *Server) SetSessionValue(writer http.ResponseWriter, request *http.Request, sessionName, key string, value interface{}) {
 	sess := b.getSession(request, sessionName)
 	if sess == nil {
@@ -275,6 +295,19 @@ func (b *Server) HasStringSessionValue(request *http.Request, sessionName string
 		return false
 	}
 	_, ok = val.(string)
+	return ok
+}
+
+func (b *Server) HasBoolSessionValue(request *http.Request, sessionName string, key string) bool {
+	sess := b.getSession(request, sessionName)
+	if sess == nil {
+		return false
+	}
+	val, ok := sess.Values[key]
+	if !ok {
+		return false
+	}
+	_, ok = val.(bool)
 	return ok
 }
 
