@@ -19,6 +19,10 @@ func (h *HandlerData) SetSessionValue(sessionName, key string, value interface{}
 	h.server.SetSessionValue(h.w, h.r, sessionName, key, value)
 }
 
+func (h *HandlerData) HasSessionValue(sessionName, key string) bool {
+	return h.server.HasSessionValue(h.r, sessionName, key)
+}
+
 func (h *HandlerData) GetStringSessionValue(sessionName, key string) string {
 	return h.server.GetStringSessionValue(h.r, sessionName, key)
 }
