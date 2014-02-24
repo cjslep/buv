@@ -17,6 +17,8 @@ import (
 	"strconv"
 	"strings"
 	"net/url"
+	"encoding/json"
+	"io/ioutil"
 )
 
 // A BuvServer is a http server that is able to gracefully start and terminate connections as it starts up
@@ -62,12 +64,36 @@ type ServerOptions struct {
 	
 	// Whether the cookie is modifiable only through HTTP requests (recommended value: true).
 	HttpOnly bool
+	
+	// Whether to use the Authentication/Encryption key size fields to automatically generate
+	// or to use the KeyPairs for the cookie store
+	GenerateKeys bool
+	
+	// Alternating Authentication and Encryption keys to use if they are not being generated for
+	// the cookie store
+	KeyPairs[][]byte
+	
+	// The name of the config file to save these options to if specified
+	ConfigFile string
 }
 
 // Convenience function to allow time tracking. Best used when deferred.
 func trackElapsed(start time.Time, name string) string {
 	elapsed := time.Since(start)
 	return fmt.Sprintf("%s took %s", name, elapsed)
+}
+
+func NewServerFromConfig(configPath string) (w *Server, e error) {
+	bytes, err := ioutil.ReadFile(configPath)
+	if err != nil {
+		return nil, err
+	}
+	var opts ServerOptions
+	err = json.Unmarshal(bytes, &opts)
+	if err != nil {
+		return nil, err
+	}
+	return NewServer(&opts)
 }
 
 // Creates a new Buv web server, using fileLog as the name of the file for logging, the directory for
@@ -77,15 +103,38 @@ func NewServer(options *ServerOptions) (w *Server, e error) {
 	if err != nil {
 		return nil, err
 	}
-	tempStore := sessions.NewCookieStore([]byte(securecookie.GenerateRandomKey(options.AuthenticationKeySize)), []byte(securecookie.GenerateRandomKey(options.EncryptionKeySize)))
+	var tempStore *sessions.CookieStore
+	if options.GenerateKeys {
+		options.KeyPairs = append(options.KeyPairs, []byte(securecookie.GenerateRandomKey(options.AuthenticationKeySize)))
+		options.KeyPairs = append(options.KeyPairs, []byte(securecookie.GenerateRandomKey(options.EncryptionKeySize)))
+	}
+	tempStore = sessions.NewCookieStore(options.KeyPairs...)
 	tempStore.Options = &sessions.Options{
     	Path: options.CookiePath,
     	MaxAge: options.MaxAge,
     	HttpOnly: options.HttpOnly,
 	}
 	server := Server{nil, make(map[string]HandlerFunction), logger, nil, nil, tempStore, mux.NewRouter()}
-	logger.Println("Successfully made buvServer!")
+	logger.Println("Successfully made buv.Server")
+	if options.ConfigFile != "" {
+		err := server.SaveConfigFile(options)
+		if err != nil {
+			logger.Println("Error saving config to " + options.ConfigFile + " : " + err.Error())
+		} else {
+			logger.Println("Successfully saved config file to: " + options.ConfigFile)
+		}
+	} else {
+		logger.Println("Not saving configuration to file")
+	}
 	return &server, nil
+}
+
+func (b *Server) SaveConfigFile(options *ServerOptions) error {
+	bytes, err := json.Marshal(options)
+	if err != nil {
+		return err
+	}
+	return ioutil.WriteFile(options.ConfigFile, bytes, options.FilePermissions)
 }
 
 func (b *Server) Localhost(URLName string) {
