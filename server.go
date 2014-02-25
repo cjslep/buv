@@ -5,11 +5,11 @@ package buv
 
 import (
 	"bitbucket.org/cjslep/dailyLogger"
+	"bitbucket.org/cjslep/goTem"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/sessions"
 	"github.com/gorilla/securecookie"
 	"fmt"
-	"html/template"
 	"net"
 	"net/http"
 	"os"
@@ -25,13 +25,13 @@ import (
 // and shuts down, in addition to handling template execution, logging details, and mapping muxes to client
 // code handlers as configured.
 type Server struct {
-	myTemplates  *template.Template
-	handlers     map[string]HandlerFunction
-	logger       dailyLogger.TimeLogger
-	listener     net.Listener
-	servNotifier chan bool
-	cookieStore  *sessions.CookieStore
-	router       *mux.Router
+	templateManager *goTem.HTMLBoss
+	handlers        map[string]HandlerFunction
+	logger          dailyLogger.TimeLogger
+	listener        net.Listener
+	servNotifier    chan bool
+	cookieStore     *sessions.CookieStore
+	router          *mux.Router
 }
 
 // BuvServerOptions is a convenience structure for defining the parameters used when creating a new BuvServer
@@ -114,7 +114,7 @@ func NewServer(options *ServerOptions) (w *Server, e error) {
     	MaxAge: options.MaxAge,
     	HttpOnly: options.HttpOnly,
 	}
-	server := Server{nil, make(map[string]HandlerFunction), logger, nil, nil, tempStore, mux.NewRouter()}
+	server := Server{goTem.NewHTMLBoss(), make(map[string]HandlerFunction), logger, nil, nil, tempStore, mux.NewRouter()}
 	logger.Println("Successfully made buv.Server")
 	if options.ConfigFile != "" {
 		err := server.SaveConfigFile(options)
@@ -232,15 +232,17 @@ func (b *Server) AddHandleFunc(schemes []string, path, URLName string, handleFun
 
 // Starts up the web service, using the specified domain, template files, port address, css & javascript asset folders,
 // handler map, and default handler for invalid URIs.
-func (b *Server) Start(address string, templateFiles []string, assetFolderToExtension map[string]string) error {
+func (b *Server) Start(address string, templateFiles map[string]([]string), assetFolderToExtension map[string]string) error {
 	defer b.logger.Println(trackElapsed(time.Now(), "*Server Startup*"))
 	b.logger.Println("Begin *Server Startup*")
 	b.logger.Println("Parsing template files...")
 	var err error
-	b.myTemplates, err = template.ParseFiles(templateFiles...)
-	if err != nil {
-		b.logger.Println(err.Error())
-		panic(err.Error())
+	for mainFile, dependentTemplates := range templateFiles {
+		err = b.templateManager.AddTemplate(mainFile, dependentTemplates)
+		if err != nil {
+			b.logger.Println(err.Error())
+			panic(err.Error())
+		}
 	}
 	b.logger.Println("Done parsing template files!")
 	
@@ -413,7 +415,7 @@ func (b *Server) Println(logString string) {
 }
 
 func (b *Server) RenderTemplate(w http.ResponseWriter, tmpl string, p interface{}) {
-	err := b.myTemplates.ExecuteTemplate(w, tmpl, p)
+	err := b.templateManager.ExecuteTemplate(w, tmpl, p)
 	if err != nil {
 		b.logger.Println("Error renderTemplate: " + err.Error())
 	}
