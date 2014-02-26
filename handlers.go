@@ -15,6 +15,10 @@ type HandlerData struct {
 // request's HandlerData, through which handler functions can operate.
 type HandlerFunction func(data *HandlerData)
 
+// Redirector is a function clients can use to cause a request to be redirected. Upon successful redirection,
+// true must be returned to prevent the default handler from being called.
+type Redirector func (data *HandlerData) bool
+
 func (h *HandlerData) SetSessionValue(sessionName, key string, value interface{}) {
 	h.server.SetSessionValue(h.w, h.r, sessionName, key, value)
 }

@@ -12,6 +12,18 @@ const (
 	LOG_FATAL   = 1
 )
 
+func redirectOrHandler(b HandlerFunction, redirs ...Redirector) HandlerFunction {
+	return func (data *HandlerData) {
+		//data.Println("Request: " + data.String())
+		for _, redirFunc := range redirs {
+			if redirFunc(data) {
+				return
+			}
+		}
+		b(data)
+	}
+}
+
 func (b *Server) getSession(request *http.Request, sessionName string) *sessions.Session {
 	sess, err := b.cookieStore.Get(request, sessionName)
 	if err != nil {

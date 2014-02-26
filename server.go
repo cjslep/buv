@@ -150,28 +150,28 @@ func (b *Server) NotFoundHandler(noHandler HandlerFunction) {
 	b.router.NotFoundHandler = b.handler(noHandler)
 }
 
-func (b *Server) AddHttpGetHandleFunc(path, URLName string, handleFunc HandlerFunction) {
-	b.AddHandleFunc([]string{"http", ""}, path, URLName, handleFunc, []string{"GET"}, nil, "")
+func (b *Server) AddHttpGetHandleFunc(path, URLName string, handleFunc HandlerFunction, redirectors []Redirector) {
+	b.AddHandleFunc([]string{"http", ""}, path, URLName, handleFunc, redirectors, []string{"GET"}, nil, "")
 }
 
-func (b *Server) AddHttpGetHandleFuncQueries(path, URLName string, handleFunc HandlerFunction, queries map[string]string) {
-	b.AddHandleFunc([]string{"http", ""}, path, URLName, handleFunc, []string{"GET"}, queries, "")
+func (b *Server) AddHttpGetHandleFuncQueries(path, URLName string, handleFunc HandlerFunction, redirectors []Redirector, queries map[string]string) {
+	b.AddHandleFunc([]string{"http", ""}, path, URLName, handleFunc, redirectors, []string{"GET"}, queries, "")
 }
 
-func (b *Server) AddHttpPostHandleFunc(path, URLName string, handleFunc HandlerFunction) {
-	b.AddHandleFunc([]string{"http", ""}, path, URLName, handleFunc, []string{"POST"}, nil, "")
+func (b *Server) AddHttpPostHandleFunc(path, URLName string, handleFunc HandlerFunction, redirectors []Redirector) {
+	b.AddHandleFunc([]string{"http", ""}, path, URLName, handleFunc, redirectors, []string{"POST"}, nil, "")
 }
 
-func (b *Server) AddHttpGetHandleFuncSubrouter(path, URLName string, handleFunc HandlerFunction, URLParentName string) {
-	b.AddHandleFunc([]string{"http", ""}, path, URLName, handleFunc, []string{"GET"}, nil, URLParentName)
+func (b *Server) AddHttpGetHandleFuncSubrouter(path, URLName string, handleFunc HandlerFunction, redirectors []Redirector, URLParentName string) {
+	b.AddHandleFunc([]string{"http", ""}, path, URLName, handleFunc, redirectors, []string{"GET"}, nil, URLParentName)
 }
 
-func (b *Server) AddHttpGetHandleFuncQueriesSubrouter(path, URLName string, handleFunc HandlerFunction, queries map[string]string, URLParentName string) {
-	b.AddHandleFunc([]string{"http", ""}, path, URLName, handleFunc, []string{"GET"}, queries, URLParentName)
+func (b *Server) AddHttpGetHandleFuncQueriesSubrouter(path, URLName string, handleFunc HandlerFunction, redirectors []Redirector, queries map[string]string, URLParentName string) {
+	b.AddHandleFunc([]string{"http", ""}, path, URLName, handleFunc, redirectors, []string{"GET"}, queries, URLParentName)
 }
 
-func (b *Server) AddHttpPostHandleFuncSubrouter(path, URLName string, handleFunc HandlerFunction, URLParentName string) {
-	b.AddHandleFunc([]string{"http", ""}, path, URLName, handleFunc, []string{"POST"}, nil, URLParentName)
+func (b *Server) AddHttpPostHandleFuncSubrouter(path, URLName string, handleFunc HandlerFunction, redirectors []Redirector, URLParentName string) {
+	b.AddHandleFunc([]string{"http", ""}, path, URLName, handleFunc, redirectors, []string{"POST"}, nil, URLParentName)
 }
 
 func (b *Server) GetUrl(URLName string, pathVars map[string]string) *url.URL {
@@ -197,7 +197,7 @@ func (b *Server) GetUrl(URLName string, pathVars map[string]string) *url.URL {
 	}
 }
 
-func (b *Server) AddHandleFunc(schemes []string, path, URLName string, handleFunc HandlerFunction, methods []string, queries map[string]string, URLParent string) {
+func (b *Server) AddHandleFunc(schemes []string, path, URLName string, handleFunc HandlerFunction, redirectors []Redirector, methods []string, queries map[string]string, URLParent string) {
 	querySlice := make([]string, len(queries) * 2)
 	index := 0
 	for key, value := range queries {
@@ -223,10 +223,10 @@ func (b *Server) AddHandleFunc(schemes []string, path, URLName string, handleFun
 	
 	if len(querySlice) > 0 {
 		b.logger.Println("AddHandleFunc schemes=" + strings.Join(schemes, ":") + ", URLName=" + URLName + ", path=" + path + ", methods=" + strings.Join(methods, ":") + ", queries=" + strings.Join(querySlice, ":"))
-		r.HandleFunc(path, b.handler(handleFunc)).Schemes(schemes...).Methods(methods...).Name(URLName).Queries(querySlice...)
+		r.HandleFunc(path, b.handler(redirectOrHandler(handleFunc, redirectors...))).Schemes(schemes...).Methods(methods...).Name(URLName).Queries(querySlice...)
 	} else {
 		b.logger.Println("AddHandleFunc schemes=" + strings.Join(schemes, ":") + ", URLName=" + URLName + ", path=" + path + ", methods=" + strings.Join(methods, ":") + " (no queries)")
-		r.HandleFunc(path, b.handler(handleFunc)).Schemes(schemes...).Methods(methods...).Name(URLName)
+		r.HandleFunc(path, b.handler(redirectOrHandler(handleFunc, redirectors...))).Schemes(schemes...).Methods(methods...).Name(URLName)
 	}
 }
 
