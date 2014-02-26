@@ -230,21 +230,28 @@ func (b *Server) AddHandleFunc(schemes []string, path, URLName string, handleFun
 	}
 }
 
-// Starts up the web service, using the specified domain, template files, port address, css & javascript asset folders,
-// handler map, and default handler for invalid URIs.
-func (b *Server) Start(address string, templateFiles map[string]([]string), assetFolderToExtension map[string]string) error {
-	defer b.logger.Println(trackElapsed(time.Now(), "*Server Startup*"))
-	b.logger.Println("Begin *Server Startup*")
-	b.logger.Println("Parsing template files...")
-	var err error
+func (b *Server) AddTemplateFiles(templateFiles map[string]([]string), path string) error {
 	for mainFile, dependentTemplates := range templateFiles {
-		err = b.templateManager.AddTemplate(mainFile, dependentTemplates)
+		depTempPath := make([]string, len(dependentTemplates))
+		for i, d := range dependentTemplates {
+			depTempPath[i] = path + d
+		}
+		name, err := b.templateManager.AddTemplate(path + mainFile, depTempPath)
 		if err != nil {
 			b.logger.Println(err.Error())
-			panic(err.Error())
+			return err
+		} else {
+			b.logger.Println("Successfully added template with name=\"" + name + "\"")
 		}
 	}
-	b.logger.Println("Done parsing template files!")
+	return nil
+}
+
+// Starts up the web service, using the specified domain, template files, port address, css & javascript asset folders,
+// handler map, and default handler for invalid URIs.
+func (b *Server) Start(address string, assetFolderToExtension map[string]string) error {
+	defer b.logger.Println(trackElapsed(time.Now(), "*Server Startup*"))
+	b.logger.Println("Begin *Server Startup*")
 	
 	for assetFolder, assetExtension := range assetFolderToExtension {
 		b.logger.Println(assetExtension + " handler using folder: " + assetFolder)
