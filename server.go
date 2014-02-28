@@ -150,30 +150,6 @@ func (b *Server) NotFoundHandler(noHandler HandlerFunction) {
 	b.router.NotFoundHandler = b.handler(noHandler)
 }
 
-func (b *Server) AddHttpGetHandleFunc(path, URLName string, handleFunc HandlerFunction, redirectors []Redirector) {
-	b.AddHandleFunc([]string{"http", ""}, path, URLName, handleFunc, redirectors, []string{"GET"}, nil, "")
-}
-
-func (b *Server) AddHttpGetHandleFuncQueries(path, URLName string, handleFunc HandlerFunction, redirectors []Redirector, queries map[string]string) {
-	b.AddHandleFunc([]string{"http", ""}, path, URLName, handleFunc, redirectors, []string{"GET"}, queries, "")
-}
-
-func (b *Server) AddHttpPostHandleFunc(path, URLName string, handleFunc HandlerFunction, redirectors []Redirector) {
-	b.AddHandleFunc([]string{"http", ""}, path, URLName, handleFunc, redirectors, []string{"POST"}, nil, "")
-}
-
-func (b *Server) AddHttpGetHandleFuncSubrouter(path, URLName string, handleFunc HandlerFunction, redirectors []Redirector, URLParentName string) {
-	b.AddHandleFunc([]string{"http", ""}, path, URLName, handleFunc, redirectors, []string{"GET"}, nil, URLParentName)
-}
-
-func (b *Server) AddHttpGetHandleFuncQueriesSubrouter(path, URLName string, handleFunc HandlerFunction, redirectors []Redirector, queries map[string]string, URLParentName string) {
-	b.AddHandleFunc([]string{"http", ""}, path, URLName, handleFunc, redirectors, []string{"GET"}, queries, URLParentName)
-}
-
-func (b *Server) AddHttpPostHandleFuncSubrouter(path, URLName string, handleFunc HandlerFunction, redirectors []Redirector, URLParentName string) {
-	b.AddHandleFunc([]string{"http", ""}, path, URLName, handleFunc, redirectors, []string{"POST"}, nil, URLParentName)
-}
-
 func (b *Server) GetUrl(URLName string, pathVars map[string]string) *url.URL {
 	route := b.router.Get(URLName)
 	if route == nil {
@@ -197,14 +173,29 @@ func (b *Server) GetUrl(URLName string, pathVars map[string]string) *url.URL {
 	}
 }
 
+// AddHandleFunc adds a handler function to the web server.
+// -schemes         The request schemes to support by the handler (eg "http", "https", or in the case of localhost, "").
+// -path            The URI/URA to handle.
+// -URLName         A unique name to call the URL so it can be reconstructed later if desired.
+// -handleFunc      The handler function for the specified URI/URA by the path.
+// -redirectors	    A list of functions that act before the handling function & act as a gateway before calling the handler. The
+//                       handler is not called if one of the redirectors redirects.
+// -methods         The HTTP methods to handle (eg "GET", "POST", etc).
+// -queries         Optional: Any queries that must be present in order to handle. The map keys are the query keys and the map
+//                       values are specific values (A value of "" matches any value).
+// -URLParent       Optional: If specified, the subrouter based on the parent URI/URA is used and therefore this match will only
+//                       be attempted if the parent also matches.
 func (b *Server) AddHandleFunc(schemes []string, path, URLName string, handleFunc HandlerFunction, redirectors []Redirector, methods []string, queries map[string]string, URLParent string) {
-	querySlice := make([]string, len(queries) * 2)
-	index := 0
-	for key, value := range queries {
-		querySlice[index] = key
-		index++
-		querySlice[index] = value
-		index++
+	var querySlice []string = nil
+	if queries != nil {
+		querySlice = make([]string, len(queries) * 2)
+		index := 0
+		for key, value := range queries {
+			querySlice[index] = key
+			index++
+			querySlice[index] = value
+			index++
+		}
 	}
 	
 	r := b.router

@@ -5,6 +5,21 @@ import (
 	"net/url"
 )
 
+const (
+	HTTP_METHOD_GET = "GET"
+	HTTP_METHOD_POST = "POST"
+	HTTP_METHOD_PUT = "PUT"
+	HTTP_METHOD_CONNECT = "CONNECT"
+	HTTP_METHOD_TRACE = "TRACE"
+	HTTP_METHOD_DELETE = "DELETE"
+	HTTP_METHOD_HEAD = "HEAD"
+	HTTP_METHOD_OPTIONS = "OPTIONS"
+	
+	HTTP_SCHEME = "http"
+	HTTPS_SCHEME = "https"
+	LOCALHOST_SCHEME = ""
+)
+
 type HandlerData struct {
 	w http.ResponseWriter
 	r *http.Request
@@ -60,35 +75,35 @@ func (h *HandlerData) GetStringFlashMessages(sessionName, flashKey string) []str
 }
 
 func (h *HandlerData) IsGetMethod() bool {
-	return h.r.Method == "GET"
+	return h.r.Method == HTTP_METHOD_GET
 }
 
 func (h *HandlerData) IsPostMethod() bool {
-	return h.r.Method == "POST"
+	return h.r.Method == HTTP_METHOD_POST
 }
 
 func (h *HandlerData) IsPutMethod() bool {
-	return h.r.Method == "PUT"
+	return h.r.Method == HTTP_METHOD_PUT
 }
 
 func (h *HandlerData) IsConnectMethod() bool {
-	return h.r.Method == "CONNECT"
+	return h.r.Method == HTTP_METHOD_CONNECT
 }
 
 func (h *HandlerData) IsTraceMethod() bool {
-	return h.r.Method == "TRACE"
+	return h.r.Method == HTTP_METHOD_TRACE
 }
 
 func (h *HandlerData) IsDeleteMethod() bool {
-	return h.r.Method == "DELETE"
+	return h.r.Method == HTTP_METHOD_DELETE
 }
 
 func (h *HandlerData) IsHeadMethod() bool {
-	return h.r.Method == "HEAD"
+	return h.r.Method == HTTP_METHOD_HEAD
 }
 
 func (h *HandlerData) IsOptionsMethod() bool {
-	return h.r.Method == "OPTIONS"
+	return h.r.Method == HTTP_METHOD_OPTIONS
 }
 
 func (h *HandlerData) Method() string {
