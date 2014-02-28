@@ -122,8 +122,12 @@ func (h *HandlerData) Println(logString string) {
 	h.server.Println(logString)
 }
 
-func (h *HandlerData) Path() string {
-	return h.r.URL.Path
+func (h *HandlerData) URL() *url.URL {
+	return h.r.URL
+}
+
+func (h *HandlerData) Referrer() string {
+	return h.r.Referer()
 }
 
 func (h *HandlerData) PostFormValue(key string) string {
