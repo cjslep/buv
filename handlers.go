@@ -141,3 +141,7 @@ func (h *HandlerData) Query() url.Values {
 func (h *HandlerData) String() string {
 	return "Method=" + h.r.Method + " URL=" + h.r.URL.String() + " Scheme=" + h.r.URL.Scheme + " Host=" + h.r.URL.Host
 }
+
+func (h *HandlerData) GetUrl(URLName string, pathVars map[string]string) *url.URL {
+	return h.server.GetUrl(URLName, pathVars)
+}
