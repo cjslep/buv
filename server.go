@@ -381,7 +381,7 @@ func (b *Server) SetFlashMessage(writer http.ResponseWriter, request *http.Reque
 
 func (b *Server) GetFirstStringFlashMessage(writer http.ResponseWriter, request *http.Request, sessionName, flashKey string) string {
 	messages := b.GetStringFlashMessages(writer, request, sessionName, flashKey)
-	if len(messages) > 1 {
+	if len(messages) >= 1 {
 		return messages[0]
 	} else {
 		return ""
