@@ -334,6 +334,19 @@ func (b *Server) HasSessionValue(request *http.Request, sessionName string, key 
 	return ok
 }
 
+func (b *Server) GetSessionValue(request *http.Request, sessionName string, key string) interface{} {
+	sess := b.getSession(request, sessionName)
+	if sess == nil {
+		return nil
+	}
+	val, ok := sess.Values[key]
+	if !ok {
+		b.logger.Println("GetSessionValue: no value for key=" + key)
+		return false
+	}
+	return val
+}
+
 func (b *Server) RemoveSessionValue(writer http.ResponseWriter, request *http.Request, sessionName, key string) {
 	sess := b.getSession(request, sessionName)
 	if sess == nil {
