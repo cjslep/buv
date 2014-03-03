@@ -122,6 +122,10 @@ func (h *HandlerData) RenderTemplate(templateName string, templateData interface
 	h.server.RenderTemplate(h.w, templateName, templateData)
 }
 
+func (h *HandlerData) WriteResponse(response string) {
+	h.w.Write([]byte(response))
+}
+
 func (h *HandlerData) Println(logString string) {
 	h.server.Println(logString)
 }
@@ -136,6 +140,11 @@ func (h *HandlerData) Referrer() string {
 
 func (h *HandlerData) PostFormValue(key string) string {
 	return h.r.PostFormValue(key)
+}
+
+func (h *HandlerData) PostForm() url.Values {
+	h.r.ParseForm()
+	return h.r.PostForm
 }
 
 func (h *HandlerData) Query() url.Values {

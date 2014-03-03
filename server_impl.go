@@ -49,7 +49,6 @@ func (b *Server) handler(fn HandlerFunction) http.HandlerFunc {
 
 func (b *Server) assetHandler(assetFolder string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		b.logger.Println("Handling asset: " + r.URL.Path)
 		vars := mux.Vars(r)
 		file, err := os.Open("." + r.URL.Path)
 		defer file.Close()

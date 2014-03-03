@@ -245,9 +245,12 @@ func (b *Server) Start(address string, assetFolderToExtension map[string]string)
 	b.logger.Println("Begin *Server Startup*")
 	
 	for assetFolder, assetExtension := range assetFolderToExtension {
-		b.logger.Println(assetExtension + " handler using folder: " + assetFolder)
-		b.router.HandleFunc(assetFolder + "{asset:[a-z]+(" + assetExtension + ")}", b.assetHandler(assetFolder))
+		b.logger.Println("Adding asset handler: " + assetFolder + "{asset:[a-z0-9A-Z_]+(" + assetExtension + ")}")
+		b.router.HandleFunc(assetFolder + "{asset:[a-z0-9A-Z_]+(" + assetExtension + ")}", b.assetHandler(assetFolder))
 	}
+	
+	b.logger.Println("Adding favicon.ico support: /favicon.ico")
+	b.router.HandleFunc("/favicon.ico", b.assetHandler(""))
 	
 	http.Handle("/", b.router)
 	b.logger.Println("Finished building handlers.")
