@@ -1,6 +1,9 @@
-// Package buv is a web server dedicated to being a slave to Web 2.0, serving up web pages
-// and parsing templates and providing a logger to client handling code. It allows
-// a client to specify gorilla-style mux's to specific handlers
+// Package buv is a web server dedicated to being a slave to Web 2.0, serving up web pages,
+// parsing templates and providing a logger to client handling code. It allows
+// a client to specify gorilla-style mux's to specific handlers, and exposes the gorilla
+// session interface to handlers using secure cookies. Furthermore, redirection
+// code can be specified separately from handler code, keeping content-delivery interests
+// orthogonal to authentication-authorization-access interests.
 package buv
 
 import (
@@ -21,9 +24,18 @@ import (
 	"io/ioutil"
 )
 
-// A BuvServer is a http server that is able to gracefully start and terminate connections as it starts up
-// and shuts down, in addition to handling template execution, logging details, and mapping muxes to client
-// code handlers as configured.
+// Server is a http server that is able to gracefully start and terminate TCP-over-IP
+// connections as it starts up and shuts down. In brief it handles:
+//   - Template execution & template dependencies
+//   - One-Log-File-A-Day Logging
+//   - Rich mux mapping to client handlers, guarded by redirectors
+//   - Mapping a path to a filetype to serve up specific assets
+//   - Constructing data-driven URLs
+//   - Handling session values and flash messages
+//   - New, re-used, or rotated secure cookie keys
+// A Server does not directly interact with the handlers, instead it exposes a limited
+// subset of its interface through a HandlerData that contains additional request
+// information beyond what the sole Server provides.
 type Server struct {
 	templateManager *goTem.HTMLBoss
 	handlers        map[string]HandlerFunction
@@ -34,55 +46,61 @@ type Server struct {
 	router          *mux.Router
 }
 
-// BuvServerOptions is a convenience structure for defining the parameters used when creating a new BuvServer
+// BuvServerOptions is a structure for defining the parameters used when creating a new
+// BuvServer.
 type ServerOptions struct {
-	// FileLog is the root name of the file to log to
+	// FileLog is the root name of the file to log to. A timestamp and file suffix
+	// will be applied to the name.
 	FileLog string
 	
-	// DirectoryLog is the path where logging files will be placed
+	// DirectoryLog is the path where logging files will be placed and must be terminated
+	// by the directory separator character ('/' for unix-based systems, '\' for others)
 	DirectoryLog string
 	
-	// FilePermissions specifies the logging file permissions when new files are created
+	// FilePermissions specifies the logging file permissions when new files are created.
+	// It is suggested to set up proper permissions and ownerships and use a different
+	// value than the very permissible 0666, such as 0644, to prevent abuse.
 	FilePermissions os.FileMode
 	
-	// DirectoryPermissions specifies the logging directory permissions when the path is created
+	// DirectoryPermissions specifies the logging directory permissions if the path is
+	// created and does not already exist. It is suggested to set up proper permissions
+	// and ownerships if necessary to prevent abuse.
 	DirectoryPermissions os.FileMode
 	
 	// AuthenticationKeySize determines the strength of the authentication key used in the session
-	// cookie store. It must be 32 or 64.
+	// cookie store. It must be 32 or 64. Only used if the GenerateKeys field is true.
 	AuthenticationKeySize int
 	
 	// EncryptionKeySize determines the strength of the encryption key used in the session cookie
-	// store. It must be 16, 24, or 32 bytes for AES-128, AES-192, or AES-256 modes.
+	// store. It must be 16, 24, or 32 bytes for AES-128, AES-192, or AES-256 modes. Only used if
+	// the GenerateKeys field is true.
 	EncryptionKeySize int
 	
-	// The path of the cookie on the client side.
+	// The path of the cookie -- determines which paths in the domain to send the cookies
+	// along with. "/" would specify for all paths in the host domain.
 	CookiePath string
 	
-	// The maximum age of the cookie before expiration.
+	// The maximum age of the cookie before expiration, in seconds.
 	MaxAge int
 	
 	// Whether the cookie is modifiable only through HTTP requests (recommended value: true).
 	HttpOnly bool
 	
-	// Whether to use the Authentication/Encryption key size fields to automatically generate
-	// or to use the KeyPairs for the cookie store
+	// Whether to use the AuthenticationKeySize & EncryptionKeySize fields in the ServerOptions
+	// to automatically generate new keys. If false, uses the KeyPairs field for the cookie store.
 	GenerateKeys bool
 	
 	// Alternating Authentication and Encryption keys to use if they are not being generated for
-	// the cookie store
+	// the cookie store. Only used if the GenerateKeys field is false.
 	KeyPairs[][]byte
 	
-	// The name of the config file to save these options to if specified
+	// The name of the config file to save these options to, if specified, so a server can be
+	// constructed using NewServerFromConfig. A value of "" will not save a copy of these options. 
 	ConfigFile string
 }
 
-// Convenience function to allow time tracking. Best used when deferred.
-func trackElapsed(start time.Time, name string) string {
-	elapsed := time.Since(start)
-	return fmt.Sprintf("%s took %s", name, elapsed)
-}
-
+// NewServerFromConfig creates a new Server from a JSON file representing a ServerOptions
+// struct. It returns a non-nil error if a failure occurs.
 func NewServerFromConfig(configPath string) (w *Server, e error) {
 	bytes, err := ioutil.ReadFile(configPath)
 	if err != nil {
@@ -96,8 +114,8 @@ func NewServerFromConfig(configPath string) (w *Server, e error) {
 	return NewServer(&opts)
 }
 
-// Creates a new Buv web server, using fileLog as the name of the file for logging, the directory for
-// storing the logs, and the file and directory permissions for the logger.
+// NewServer creates a new web Server from the specified options. It returns a non-nil error
+// if a failure in creation occurs.
 func NewServer(options *ServerOptions) (w *Server, e error) {
 	logger, err := dailyLogger.NewBasicTimeLogger(options.FileLog, options.DirectoryLog, options.FilePermissions, options.DirectoryPermissions)
 	if err != nil {

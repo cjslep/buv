@@ -64,3 +64,9 @@ func (b *Server) assetHandler(assetFolder string) http.HandlerFunc {
 		http.ServeContent(w, r, vars["asset"], stat.ModTime(), file)
 	}
 }
+
+// Convenience function to allow time tracking when debugging. Best used when deferred.
+func trackElapsed(start time.Time, name string) string {
+	elapsed := time.Since(start)
+	return fmt.Sprintf("%s took %s", name, elapsed)
+}
