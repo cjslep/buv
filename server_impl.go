@@ -31,7 +31,7 @@ const (
 )
 
 func redirectOrHandler(b HandlerFunction, redirs ...Redirector) HandlerFunction {
-	return func (data *HandlerData) {
+	return func(data *HandlerData) {
 		//data.Println("Request: " + data.String())
 		for _, redirFunc := range redirs {
 			if redirFunc(data) {

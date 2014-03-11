@@ -24,23 +24,23 @@ import (
 )
 
 const (
-	HTTP_METHOD_GET = "GET"
-	HTTP_METHOD_POST = "POST"
-	HTTP_METHOD_PUT = "PUT"
+	HTTP_METHOD_GET     = "GET"
+	HTTP_METHOD_POST    = "POST"
+	HTTP_METHOD_PUT     = "PUT"
 	HTTP_METHOD_CONNECT = "CONNECT"
-	HTTP_METHOD_TRACE = "TRACE"
-	HTTP_METHOD_DELETE = "DELETE"
-	HTTP_METHOD_HEAD = "HEAD"
+	HTTP_METHOD_TRACE   = "TRACE"
+	HTTP_METHOD_DELETE  = "DELETE"
+	HTTP_METHOD_HEAD    = "HEAD"
 	HTTP_METHOD_OPTIONS = "OPTIONS"
-	
-	HTTP_SCHEME = "http"
-	HTTPS_SCHEME = "https"
+
+	HTTP_SCHEME      = "http"
+	HTTPS_SCHEME     = "https"
 	LOCALHOST_SCHEME = ""
 )
 
 type HandlerData struct {
-	w http.ResponseWriter
-	r *http.Request
+	w      http.ResponseWriter
+	r      *http.Request
 	server *Server
 }
 
@@ -50,7 +50,7 @@ type HandlerFunction func(data *HandlerData)
 
 // Redirector is a function clients can use to cause a request to be redirected. Upon successful redirection,
 // true must be returned to prevent the default handler from being called.
-type Redirector func (data *HandlerData) bool
+type Redirector func(data *HandlerData) bool
 
 func (h *HandlerData) SetSessionValue(sessionName, key string, value interface{}) {
 	h.server.SetSessionValue(h.w, h.r, sessionName, key, value)

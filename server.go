@@ -21,19 +21,19 @@ package buv
 import (
 	"bitbucket.org/cjslep/dailyLogger"
 	"bitbucket.org/cjslep/goTem"
-	"github.com/gorilla/mux"
-	"github.com/gorilla/sessions"
-	"github.com/gorilla/securecookie"
+	"encoding/json"
 	"fmt"
+	"github.com/gorilla/mux"
+	"github.com/gorilla/securecookie"
+	"github.com/gorilla/sessions"
+	"io/ioutil"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
-	"time"
 	"strconv"
 	"strings"
-	"net/url"
-	"encoding/json"
-	"io/ioutil"
+	"time"
 )
 
 // Server is a http server that is able to gracefully start and terminate TCP-over-IP
@@ -64,50 +64,50 @@ type ServerOptions struct {
 	// FileLog is the root name of the file to log to. A timestamp and file suffix
 	// will be applied to the name.
 	FileLog string
-	
+
 	// DirectoryLog is the path where logging files will be placed and must be terminated
 	// by the directory separator character ('/' for unix-based systems, '\' for others)
 	DirectoryLog string
-	
+
 	// FilePermissions specifies the logging file permissions when new files are created.
 	// It is suggested to set up proper permissions and ownerships and use a different
 	// value than the very permissible 0666, such as 0644, to prevent abuse.
 	FilePermissions os.FileMode
-	
+
 	// DirectoryPermissions specifies the logging directory permissions if the path is
 	// created and does not already exist. It is suggested to set up proper permissions
 	// and ownerships if necessary to prevent abuse.
 	DirectoryPermissions os.FileMode
-	
+
 	// AuthenticationKeySize determines the strength of the authentication key used in the session
 	// cookie store. It must be 32 or 64. Only used if the GenerateKeys field is true.
 	AuthenticationKeySize int
-	
+
 	// EncryptionKeySize determines the strength of the encryption key used in the session cookie
 	// store. It must be 16, 24, or 32 bytes for AES-128, AES-192, or AES-256 modes. Only used if
 	// the GenerateKeys field is true.
 	EncryptionKeySize int
-	
+
 	// The path of the cookie -- determines which paths in the domain to send the cookies
 	// along with. "/" would specify for all paths in the host domain.
 	CookiePath string
-	
+
 	// The maximum age of the cookie before expiration, in seconds.
 	MaxAge int
-	
+
 	// Whether the cookie is modifiable only through HTTP requests (recommended value: true).
 	HttpOnly bool
-	
+
 	// Whether to use the AuthenticationKeySize & EncryptionKeySize fields in the ServerOptions
 	// to automatically generate new keys. If false, uses the KeyPairs field for the cookie store.
 	GenerateKeys bool
-	
+
 	// Alternating Authentication and Encryption keys to use if they are not being generated for
 	// the cookie store. Only used if the GenerateKeys field is false.
-	KeyPairs[][]byte
-	
+	KeyPairs [][]byte
+
 	// The name of the config file to save these options to, if specified, so a server can be
-	// constructed using NewServerFromConfig. A value of "" will not save a copy of these options. 
+	// constructed using NewServerFromConfig. A value of "" will not save a copy of these options.
 	ConfigFile string
 }
 
@@ -140,9 +140,9 @@ func NewServer(options *ServerOptions) (w *Server, e error) {
 	}
 	tempStore = sessions.NewCookieStore(options.KeyPairs...)
 	tempStore.Options = &sessions.Options{
-    	Path: options.CookiePath,
-    	MaxAge: options.MaxAge,
-    	HttpOnly: options.HttpOnly,
+		Path:     options.CookiePath,
+		MaxAge:   options.MaxAge,
+		HttpOnly: options.HttpOnly,
 	}
 	server := Server{goTem.NewHTMLBoss(), make(map[string]HandlerFunction), logger, nil, nil, tempStore, mux.NewRouter()}
 	logger.Println("Successfully made buv.Server")
@@ -186,7 +186,7 @@ func (b *Server) GetUrl(URLName string, pathVars map[string]string) *url.URL {
 		b.logger.Println("GetUrl: No mux.Route with registered name: " + URLName)
 		return nil
 	}
-	pathVarSlice := make([]string, len(pathVars) * 2)
+	pathVarSlice := make([]string, len(pathVars)*2)
 	index := 0
 	for key, value := range pathVars {
 		pathVarSlice[index] = key
@@ -218,7 +218,7 @@ func (b *Server) GetUrl(URLName string, pathVars map[string]string) *url.URL {
 func (b *Server) AddHandleFunc(schemes []string, path, URLName string, handleFunc HandlerFunction, redirectors []Redirector, methods []string, queries map[string]string, URLParent string) {
 	var querySlice []string = nil
 	if queries != nil {
-		querySlice = make([]string, len(queries) * 2)
+		querySlice = make([]string, len(queries)*2)
 		index := 0
 		for key, value := range queries {
 			querySlice[index] = key
@@ -227,7 +227,7 @@ func (b *Server) AddHandleFunc(schemes []string, path, URLName string, handleFun
 			index++
 		}
 	}
-	
+
 	r := b.router
 	if len(URLParent) > 0 {
 		temp := b.router.Get(URLParent)
@@ -241,7 +241,7 @@ func (b *Server) AddHandleFunc(schemes []string, path, URLName string, handleFun
 	} else {
 		b.logger.Println("AddHandleFunc no parent specified")
 	}
-	
+
 	if len(querySlice) > 0 {
 		b.logger.Println("AddHandleFunc schemes=" + strings.Join(schemes, ":") + ", URLName=" + URLName + ", path=" + path + ", methods=" + strings.Join(methods, ":") + ", queries=" + strings.Join(querySlice, ":"))
 		r.HandleFunc(path, b.handler(redirectOrHandler(handleFunc, redirectors...))).Schemes(schemes...).Methods(methods...).Name(URLName).Queries(querySlice...)
@@ -257,7 +257,7 @@ func (b *Server) AddTemplateFiles(templateFiles map[string]([]string), path stri
 		for i, d := range dependentTemplates {
 			depTempPath[i] = path + d
 		}
-		name, err := b.templateManager.AddTemplate(path + mainFile, depTempPath)
+		name, err := b.templateManager.AddTemplate(path+mainFile, depTempPath)
 		if err != nil {
 			b.logger.Println(err.Error())
 			return err
@@ -273,15 +273,15 @@ func (b *Server) AddTemplateFiles(templateFiles map[string]([]string), path stri
 func (b *Server) Start(address string, assetFolderToExtension map[string]string) error {
 	defer b.logger.Println(trackElapsed(time.Now(), "*Server Startup*"))
 	b.logger.Println("Begin *Server Startup*")
-	
+
 	for assetFolder, assetExtension := range assetFolderToExtension {
 		b.logger.Println("Adding asset handler: " + assetFolder + "{asset:[a-z0-9A-Z_]+(" + assetExtension + ")}")
-		b.router.HandleFunc(assetFolder + "{asset:[a-z0-9A-Z_]+(" + assetExtension + ")}", b.assetHandler(assetFolder))
+		b.router.HandleFunc(assetFolder+"{asset:[a-z0-9A-Z_]+("+assetExtension+")}", b.assetHandler(assetFolder))
 	}
-	
+
 	b.logger.Println("Adding favicon.ico support: /favicon.ico")
 	b.router.HandleFunc("/favicon.ico", b.assetHandler(""))
-	
+
 	http.Handle("/", b.router)
 	b.logger.Println("Finished building handlers.")
 
@@ -420,7 +420,7 @@ func (b *Server) SetFlashMessage(writer http.ResponseWriter, request *http.Reque
 	if sess == nil {
 		return
 	}
-	
+
 	sess.AddFlash(message, flashKey)
 	b.saveSession(request, writer, sess)
 }
@@ -439,7 +439,7 @@ func (b *Server) GetStringFlashMessages(writer http.ResponseWriter, request *htt
 	if sess == nil {
 		return nil
 	}
-	
+
 	temp := sess.Flashes(flashKey)
 	b.saveSession(request, writer, sess)
 	strSlice := make([]string, len(temp))
