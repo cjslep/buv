@@ -22,7 +22,6 @@ import (
 	"bitbucket.org/cjslep/dailyLogger"
 	"bitbucket.org/cjslep/goTem"
 	"encoding/json"
-	"fmt"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/securecookie"
 	"github.com/gorilla/sessions"
