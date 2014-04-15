@@ -21,7 +21,7 @@ package buv
 import (
 	"bitbucket.org/cjslep/dailyLogger"
 	"bitbucket.org/cjslep/goTem"
-	"encoding/json"
+	"gopkg.in/v1/yaml"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/securecookie"
 	"github.com/gorilla/sessions"
@@ -48,7 +48,7 @@ import (
 // subset of its interface through a HandlerData that contains additional request
 // information beyond what the sole Server provides.
 type Server struct {
-	templateManager *goTem.HTMLBoss
+	templateManager *goTem.HTMLTemplateWatcher
 	handlers        map[string]HandlerFunction
 	logger          dailyLogger.TimeLogger
 	listener        net.Listener
@@ -108,6 +108,12 @@ type ServerOptions struct {
 	// The name of the config file to save these options to, if specified, so a server can be
 	// constructed using NewServerFromConfig. A value of "" will not save a copy of these options.
 	ConfigFile string
+
+	// The path to the directory containing the template files
+	TemplatePath string
+
+	// The extension used by the template files
+	TemplateExtension string
 }
 
 // NewServerFromConfig creates a new Server from a JSON file representing a ServerOptions
@@ -118,7 +124,7 @@ func NewServerFromConfig(configPath string) (w *Server, e error) {
 		return nil, err
 	}
 	var opts ServerOptions
-	err = json.Unmarshal(bytes, &opts)
+	err = yaml.Unmarshal(bytes, &opts)
 	if err != nil {
 		return nil, err
 	}
@@ -143,7 +149,12 @@ func NewServer(options *ServerOptions) (w *Server, e error) {
 		MaxAge:   options.MaxAge,
 		HttpOnly: options.HttpOnly,
 	}
-	server := Server{goTem.NewHTMLBoss(), make(map[string]HandlerFunction), logger, nil, nil, tempStore, mux.NewRouter()}
+	watcher, err := goTem.NewHTMLTemplateWatcher(options.TemplatePath, options.TemplateExtension, logger)
+	if err != nil {
+		return nil, err
+	}
+
+	server := Server{watcher, make(map[string]HandlerFunction), logger, nil, nil, tempStore, mux.NewRouter()}
 	logger.Println("Successfully made buv.Server")
 	if options.ConfigFile != "" {
 		err := server.SaveConfigFile(options)
@@ -159,7 +170,7 @@ func NewServer(options *ServerOptions) (w *Server, e error) {
 }
 
 func (b *Server) SaveConfigFile(options *ServerOptions) error {
-	bytes, err := json.Marshal(options)
+	bytes, err := yaml.Marshal(options)
 	if err != nil {
 		return err
 	}
@@ -250,28 +261,14 @@ func (b *Server) AddHandleFunc(schemes []string, path, URLName string, handleFun
 	}
 }
 
-func (b *Server) AddTemplateFiles(templateFiles map[string]([]string), path string) error {
-	for mainFile, dependentTemplates := range templateFiles {
-		depTempPath := make([]string, len(dependentTemplates))
-		for i, d := range dependentTemplates {
-			depTempPath[i] = path + d
-		}
-		name, err := b.templateManager.AddTemplate(path+mainFile, depTempPath)
-		if err != nil {
-			b.logger.Println(err.Error())
-			return err
-		} else {
-			b.logger.Println("Successfully added template with name=\"" + name + "\"")
-		}
-	}
-	return nil
-}
-
 // Starts up the web service, using the specified domain, template files, port address, css & javascript asset folders,
 // handler map, and default handler for invalid URIs.
 func (b *Server) Start(address string, assetFolderToExtension map[string]string) error {
 	defer b.logger.Println(trackElapsed(time.Now(), "*Server Startup*"))
 	b.logger.Println("Begin *Server Startup*")
+
+	b.logger.Println("Starting up template watcher.")
+	b.templateManager.Start()
 
 	for assetFolder, assetExtension := range assetFolderToExtension {
 		b.logger.Println("Adding asset handler: " + assetFolder + "{asset:[a-z0-9A-Z_]+(" + assetExtension + ")}")
@@ -308,6 +305,8 @@ func (b *Server) Shutdown() {
 	b.logger.Println("Begin *Server Shutdown*")
 	b.logger.Println("Closing the listener.")
 	b.listener.Close()
+	b.logger.Println("Stopping the template watcher.")
+	b.templateManager.Stop()
 	b.logger.Println("Waiting for shutdown notification.")
 	<-b.servNotifier
 }
@@ -460,6 +459,6 @@ func (b *Server) Println(logString string) {
 func (b *Server) RenderTemplate(w http.ResponseWriter, tmpl string, p interface{}) {
 	err := b.templateManager.ExecuteTemplate(w, tmpl, p)
 	if err != nil {
-		b.logger.Println("Error renderTemplate: " + err.Error())
+		b.logger.Println("buv.Server RenderTemplate error: " + err.Error())
 	}
 }
