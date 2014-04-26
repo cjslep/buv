@@ -50,7 +50,7 @@ import (
 type Server struct {
 	templateManager *goTem.HTMLTemplateWatcher
 	handlers        map[string]HandlerFunction
-	logger          dailyLogger.TimeLogger
+	logger          *dailyLogger.DailyLogger
 	listener        net.Listener
 	servNotifier    chan bool
 	cookieStore     *sessions.CookieStore
@@ -134,10 +134,8 @@ func NewServerFromConfig(configPath string) (w *Server, e error) {
 // NewServer creates a new web Server from the specified options. It returns a non-nil error
 // if a failure in creation occurs.
 func NewServer(options *ServerOptions) (w *Server, e error) {
-	logger, err := dailyLogger.NewBasicTimeLogger(options.FileLog, options.DirectoryLog, options.FilePermissions, options.DirectoryPermissions)
-	if err != nil {
-		return nil, err
-	}
+	logger := dailyLogger.NewDailyLogger(options.FileLog, options.DirectoryLog, options.FilePermissions, options.DirectoryPermissions)
+	logger.Start()
 	var tempStore *sessions.CookieStore
 	if options.GenerateKeys {
 		options.KeyPairs = append(options.KeyPairs, []byte(securecookie.GenerateRandomKey(options.AuthenticationKeySize)))
@@ -265,6 +263,7 @@ func (b *Server) AddHandleFunc(schemes []string, path, URLName string, handleFun
 // handler map, and default handler for invalid URIs.
 func (b *Server) Start(address string, assetFolderToExtension map[string]string) error {
 	defer b.logger.Println(trackElapsed(time.Now(), "*Server Startup*"))
+	b.logger.Start()
 	b.logger.Println("Begin *Server Startup*")
 
 	b.logger.Println("Starting up template watcher.")
@@ -272,7 +271,7 @@ func (b *Server) Start(address string, assetFolderToExtension map[string]string)
 
 	for assetFolder, assetExtension := range assetFolderToExtension {
 		b.logger.Println("Adding asset handler: " + assetFolder + "{asset:[a-z0-9A-Z_]+(" + assetExtension + ")}")
-		b.router.HandleFunc(assetFolder+"{asset:[a-z0-9A-Z_]+("+assetExtension+")}", b.assetHandler(assetFolder))
+		b.router.HandleFunc(""+assetFolder+"{asset:[a-z0-9A-Z_]+("+assetExtension+")}", b.assetHandler(assetFolder))
 	}
 
 	b.logger.Println("Adding favicon.ico support: /favicon.ico")
@@ -309,6 +308,7 @@ func (b *Server) Shutdown() {
 	b.templateManager.Stop()
 	b.logger.Println("Waiting for shutdown notification.")
 	<-b.servNotifier
+	b.logger.Stop()
 }
 
 func (b *Server) GetStringSessionValue(request *http.Request, sessionName string, key string) string {
